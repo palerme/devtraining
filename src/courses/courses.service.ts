@@ -1,54 +1,52 @@
+import { UpdateCourseDto } from './dto/update-course.dto';
+import { CreateCourseDto } from './dto/create-course.dto';
+import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import { Repository } from 'typeorm';
+
 import { Course } from './entities/course.entity';
-import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
-import { exists } from 'fs';
+import { CoursesController } from './courses.controller';
 
 @Injectable()
 export class CoursesService {
-    private courses: Course[] = [
-        {
-            id: 1,
-            name: 'Fundamentos Frameworkdo NestJS',
-            description: 'Fundamentos Frameworkdo NestJS',
-            tags: ['node.js', 'nestjs', 'javascript'],
-        },
+  constructor(
+    @Inject('DATA_SOURCE')
+    private readonly courseRepository: Repository<Course>,
+  ) {}
+  findAll() {
+    return this.courseRepository.find();
+  }
 
-    ];
+  async findOne(id: number) {
+    const course = await this.courseRepository.findOne({ where: { id } });
 
-    findAll() {
-        return this.courses;
+    if (!course) {
+      throw new NotFoundException(`O curso ${id} não foi encontrado`);
     }
 
-    findOne(id: string) {
-        const course = this.courses.find((course: Course) => course.id === Number(id))
+    return course;
+  }
 
-        if (!course) {
-            throw new HttpException(`O curso ${id} não foi encontrado`, HttpStatus.NOT_FOUND);
-        }
+  create(createCourseDto: CreateCourseDto) {
+    const course = this.courseRepository.create(createCourseDto);
+    return this.courseRepository.save(course);
+  }
 
-        return course;
+  async update(id: number, updateCourseDto: UpdateCourseDto) {
+    const course = await this.courseRepository.preload({
+      id: id,
+      ...updateCourseDto,
+    });
+    if (!course) {
+      throw new NotFoundException(`O curso ${id} não foi encontrado`);
     }
+    return this.courseRepository.save(course);
+  }
 
-    create(createCourseDto: any) {
-        this.courses.push(createCourseDto);
-        return createCourseDto;
+  async remove(id: number) {
+    const course = await this.courseRepository.findOne({ where: { id } });
+    if (!course) {
+      throw new NotFoundException(`O curso ${id} não foi encontrado`);
     }
-
-    update(id: string, updateCourseDto: any) {
-        const indexCourse = this.courses.findIndex(
-            course => course.id === Number(id)
-        );
-
-        this.courses[indexCourse] = updateCourseDto;
-    }
-
-    remove(id: string) {
-        const indexCourse = this.courses.findIndex(
-            (course: Course) => course.id === Number(id)
-        );
-        if (indexCourse >= 0) {
-            this.courses.splice(indexCourse, 1);
-        }
-    }
-
+    return this.courseRepository.remove(course);
+  }
 }
-
